@@ -27,7 +27,7 @@ def read_dir(path, all_data, label, class_idx):
     for file_name in glob.glob(path):
         with open(file_name, "rb") as f:
             all_data.append(" ".join(f.readlines()))
-            # Taking care of Positive anf Negative Label.
+            # Taking care of order of Positive and Negative Label.
             if class_idx == POS_CLASS_IDX:
                 label.append(1)
             else:

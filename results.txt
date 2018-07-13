@@ -1,0 +1,6 @@
+Multinomial Naive Bayes Basic: 72.12%
+AdaBoost Basic: 93.06%
+Random Forest Basic: 85.30%
+
+Random Forest Grid Search:  90.57%
+Multinomial Naive Bayes Grid Search: 91.26%
