@@ -8,6 +8,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
+from sklearn import metrics
 
 BASE_PATH = "../data/"
 
@@ -23,11 +24,11 @@ def read_files(file_type):
     with open(BASE_PATH + file_type + "_x.txt", "rb") as f:
         for line in f:
             processed_line = remove_hyperlink(line)
-            x_list.append(processed_line)
+            x_list.append(processed_line.strip())
 
     with open(BASE_PATH + file_type + "_y.txt", "rb") as f:
         for line in f:
-            y_list.append(line)
+            y_list.append(int(line.strip()))
 
     return x_list, y_list
 
@@ -102,8 +103,11 @@ def mnb_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
 
 def evaluate(model, test_features, y_true):
     y_pred = model.predict(test_features)
+    y_proba = model.predict_proba(test_features)[:, 1]
     accuracy = accuracy_score(y_true, y_pred) * 100.0
-    return accuracy
+    auc_score = metrics.roc_auc_score(y_true, y_proba)
+    precision_score = metrics.average_precision_score(y_true, y_proba)
+    return accuracy, auc_score, precision_score
 
 
 def main():
@@ -123,19 +127,23 @@ def main():
     x_train_tf_idf = tf_idf_transformer.fit_transform(x_train_counts)
     x_test_tf_idf = tf_idf_transformer.transform(x_test_counts)
 
-    # clf_nb = MultinomialNB(alpha=0.1, fit_prior=False).fit(x_train_tf_idf, y_train)
-    # clf_rf = RandomForestClassifier(max_features='sqrt', min_samples_split=15, bootstrap=True,
-    #                               n_estimators=1000, max_depth=200).fit(x_train_tf_idf, y_train)
+    clf_nb = MultinomialNB(alpha=0.1, fit_prior=False).fit(x_train_tf_idf, y_train)
+    accuracy, auc_score, precision_score = evaluate(clf_nb, x_test_tf_idf, y_test)
+    print "Multinomial Naive Bayes Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"\
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
+    clf_rf = RandomForestClassifier(max_features='sqrt', min_samples_split=15, bootstrap=True,
+                                    n_estimators=1000, max_depth=200).fit(x_train_tf_idf, y_train)
 
-    # print "Base Naive Bayes: ", evaluate(clf_nb, x_test_tf_idf, y_test)
-    # print "Base Random Forest: ", evaluate(clf_rf, x_test_tf_idf, y_test)
+    accuracy, auc_score, precision_score = evaluate(clf_rf, x_test_tf_idf, y_test)
+    print "Random Forest Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
     # rf_random_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
     # rf_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
     # mnb_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
-    # clf = AdaBoostClassifier(n_estimators=500, learning_rate=0.2).fit(x_train_tf_idf, y_train)
-    # clf = GradientBoostingClassifier(n_estimators=1000, learning_rate=0.1, max_depth=1, random_state=0)\
-    #     .fit(x_train_tf_idf, y_train)
-    # print "Base: ", evaluate(clf, x_test_tf_idf, y_test)
+    adb_clf = AdaBoostClassifier(n_estimators=500, learning_rate=0.2).fit(x_train_tf_idf, y_train)
+    accuracy, auc_score, precision_score = evaluate(adb_clf, x_test_tf_idf, y_test)
+    print "AdaBoost Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
 
 
 if __name__ == "__main__":

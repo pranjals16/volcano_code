@@ -1,6 +1,3 @@
-Multinomial Naive Bayes Basic: 72.12%
-AdaBoost Basic: 93.06%
-Random Forest Basic: 85.30%
-
-Random Forest Grid Search:  90.57%
-Multinomial Naive Bayes Grid Search: 91.26%
+Multinomial Naive Bayes: Acc-91.26%, AUC:0.9657, PR-0.9467
+AdaBoost Basic: Acc-93.06%, AUC:0.9738, PR-0.9498
+Random Forest: Acc-90.43%, AUC:0.9660, PR-0.9268
