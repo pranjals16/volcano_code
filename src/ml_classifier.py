@@ -58,13 +58,13 @@ def rf_random_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
     rf_random = RandomizedSearchCV(estimator=rf, param_distributions=random_grid, n_iter=100, cv=3, verbose=2,
                                    random_state=42, n_jobs=-1)
     rf_random.fit(x_train_tf_idf, y_train)
-    print rf_random.best_params_
+    print(rf_random.best_params_)
     # {'bootstrap': False, 'min_samples_leaf': 1, 'n_estimators': 788, 'max_features': 'sqrt', 'min_samples_split': 20
     # #'max_depth': 110}
 
     best_random = rf_random.best_estimator_
     random_accuracy = evaluate(best_random, x_test_tf_idf, y_test)
-    print random_accuracy
+    print(random_accuracy)
 
 
 def rf_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
@@ -79,11 +79,11 @@ def rf_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
     grid_search = GridSearchCV(estimator=rf, param_grid=param_grid,
                                cv=3, n_jobs=-1, verbose=2)
     grid_search.fit(x_train_tf_idf, y_train)
-    print "Best Parameters of Grid Search: ", grid_search.best_params_
+    print("Best Parameters of Grid Search: ", grid_search.best_params_)
     best_grid = grid_search.best_estimator_
     # Best Parameters of Grid Search:  {'max_features': 'sqrt', 'min_samples_split': 15, 'bootstrap': True,
     # 'n_estimators': 700, 'max_depth': 100}
-    print "Random Forest Grid Search: ", evaluate(best_grid, x_test_tf_idf, y_test)
+    print("Random Forest Grid Search: ", evaluate(best_grid, x_test_tf_idf, y_test))
 
 
 def mnb_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
@@ -95,10 +95,10 @@ def mnb_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test):
     grid_search = GridSearchCV(estimator=mnb, param_grid=param_grid,
                                cv=3, n_jobs=-1, verbose=2)
     grid_search.fit(x_train_tf_idf, y_train)
-    print "Best Parameters of Grid Search: ", grid_search.best_params_
+    print("Best Parameters of Grid Search: ", grid_search.best_params_)
     best_grid = grid_search.best_estimator_
     # Best Parameters of Grid Search:  {'alpha': 0.1, 'fit_prior': False}
-    print "Multinomial Naive Bayes Grid Search: ", evaluate(best_grid, x_test_tf_idf, y_test)
+    print("Multinomial Naive Bayes Grid Search: ", evaluate(best_grid, x_test_tf_idf, y_test))
 
 
 def evaluate(model, test_features, y_true):
@@ -112,11 +112,11 @@ def evaluate(model, test_features, y_true):
 
 def main():
     x_train, y_train = read_files("train")
-    print "Training File Read - Size: ", len(x_train)
+    print("Training File Read - Size: ", len(x_train))
     x_test, y_test = read_files("test")
-    print "Test File Read - Size: ", len(x_test)
+    print("Test File Read - Size: ", len(x_test))
     x_val, y_val = read_files("val")
-    print "Validation File Read - Size: ", len(x_val)
+    print("Validation File Read - Size: ", len(x_val))
 
     count_vect = CountVectorizer()
     x_train_counts = count_vect.fit_transform(x_train)
@@ -129,21 +129,21 @@ def main():
 
     clf_nb = MultinomialNB(alpha=0.1, fit_prior=False).fit(x_train_tf_idf, y_train)
     accuracy, auc_score, precision_score = evaluate(clf_nb, x_test_tf_idf, y_test)
-    print "Multinomial Naive Bayes Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"\
-        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
+    print("Multinomial Naive Bayes Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"\
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
     clf_rf = RandomForestClassifier(max_features='sqrt', min_samples_split=15, bootstrap=True,
                                     n_estimators=1000, max_depth=200).fit(x_train_tf_idf, y_train)
 
     accuracy, auc_score, precision_score = evaluate(clf_rf, x_test_tf_idf, y_test)
-    print "Random Forest Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
-        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
+    print("Random Forest Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
     # rf_random_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
     # rf_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
     # mnb_grid_search(x_train_tf_idf, y_train, x_test_tf_idf, y_test)
     adb_clf = AdaBoostClassifier(n_estimators=500, learning_rate=0.2).fit(x_train_tf_idf, y_train)
     accuracy, auc_score, precision_score = evaluate(adb_clf, x_test_tf_idf, y_test)
-    print "AdaBoost Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
-        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
+    print("AdaBoost Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
 
 
 if __name__ == "__main__":

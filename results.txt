@@ -3,4 +3,4 @@ AdaBoost: Acc-93.06%, AUC:0.9738, PR-0.9498
 Random Forest: Acc-90.43%, AUC:0.9660, PR-0.9268
 
 
-Convolution Model: Accuracy-71.4285714286, AUC-0.898483159353 and PR_Score-0.884676596651
+Convolution Model: Accuracy-84.7434119279, AUC-0.909517414952 and PR_Score-0.865128213652
