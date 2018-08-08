@@ -1,22 +1,24 @@
 import os
 import re
 
-from sklearn import metrics
-
 # os.environ['KERAS_BACKEND'] = 'cntk'
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+from keras.engine import Layer
+from keras import optimizers
+from keras.optimizers import SGD
+from sklearn import metrics
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils.np_utils import to_categorical
-from keras.layers import Dense, Input, Flatten
-from keras.layers import Conv1D, MaxPooling1D, Embedding, Dropout, Concatenate, Bidirectional, LSTM, GRU
-from keras.models import Model
-from keras import backend as K
-from keras.engine import Layer
-from keras import initializers
+from keras.layers import Dense, Input, Flatten, regularizers, K
+from keras.layers import Conv1D, MaxPooling1D, Embedding, Dropout, Concatenate, Bidirectional, LSTM, GRU, TimeDistributed
+from keras.models import Model, Sequential
 from keras.models import model_from_json
 import numpy
 
+
+MAX_SENT_LENGTH = 50
+MAX_SENTS = 15
 MAX_SEQUENCE_LENGTH = 1000
 MAX_NB_WORDS = 20000
 EMBEDDING_DIM = 100
@@ -101,7 +103,7 @@ def load_keras_model(name):
 
 
 def train_convolution_model(x_train, y_train, x_val, y_val, word_index):
-    epoch_size = 200
+    epoch_size = 10
     embedding_matrix = numpy.random.random((len(word_index) + 1, EMBEDDING_DIM))
     embedding_layer = Embedding(len(word_index) + 1,
                                 EMBEDDING_DIM,
@@ -120,86 +122,42 @@ def train_convolution_model(x_train, y_train, x_val, y_val, word_index):
     l_merge = Concatenate(axis=-1)(convs)
     l_cov1 = Conv1D(128, 5, activation='relu')(l_merge)
     l_pool1 = MaxPooling1D(5)(l_cov1)
-    drop_1 = Dropout(0.25)(l_pool1)
+    drop_1 = Dropout(0.15)(l_pool1)
     l_cov2 = Conv1D(128, 5, activation='relu')(drop_1)
     l_pool2 = MaxPooling1D(30)(l_cov2)
-    drop_2 = Dropout(0.35)(l_pool2)
+    drop_2 = Dropout(0.25)(l_pool2)
     l_flat = Flatten()(drop_2)
     l_dense = Dense(128, activation='relu')(l_flat)
     preds = Dense(2, activation='softmax')(l_dense)
     model = Model(sequence_input, preds)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
-    model.fit(x_train, y_train, validation_data=(x_val, y_val), nb_epoch=epoch_size, batch_size=32)
+    model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=epoch_size, batch_size=32)
     return model
 
 
 def train_bidirectional_lstm(x_train, y_train, x_val, y_val, word_index):
-    epoch_size = 150
+    epoch_size = 10
+    reg_param = 1e-7
     embedding_matrix = numpy.random.random((len(word_index) + 1, EMBEDDING_DIM))
     embedding_layer = Embedding(len(word_index) + 1,
                                 EMBEDDING_DIM,
                                 weights=[embedding_matrix],
                                 input_length=MAX_SEQUENCE_LENGTH,
                                 trainable=True)
-    sequence_input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
-    embedded_sequences = embedding_layer(sequence_input)
-    l_lstm = Bidirectional(LSTM(100))(embedded_sequences)
-    drop_1 = Dropout(0.20)(l_lstm)
-    preds = Dense(2, activation='softmax')(drop_1)
-    bi_lstm_model = Model(sequence_input, preds)
-    bi_lstm_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
-    print("model fitting - Bidirectional LSTM")
-    bi_lstm_model.summary()
-    bi_lstm_model.fit(x_train, y_train, validation_data=(x_val, y_val), nb_epoch=epoch_size, batch_size=50)
-    return bi_lstm_model
-
-
-def train_bidirectional_lstm_han(x_train, y_train, x_val, y_val, word_index):
-    class AttLayer(Layer):
-        def __init__(self, **kwargs):
-            self.init = initializers.get('normal')
-            # self.input_spec = [InputSpec(ndim=3)]
-            super(AttLayer, self).__init__(**kwargs)
-
-        def build(self, input_shape):
-            assert len(input_shape) == 3
-            # self.W = self.init((input_shape[-1],1))
-            self.W = self.init((input_shape[-1],))
-            # self.input_spec = [InputSpec(shape=input_shape)]
-            self.trainable_weights = [self.W]
-            super(AttLayer, self).build(input_shape)  # be sure you call this somewhere!
-
-        def call(self, x, mask=None):
-            eij = K.tanh(K.dot(x, self.W))
-
-            ai = K.exp(eij)
-            weights = ai / K.sum(ai, axis=1).dimshuffle(0, 'x')
-
-            weighted_input = x * weights.dimshuffle(0, 1, 'x')
-            return weighted_input.sum(axis=1)
-
-        def get_output_shape_for(self, input_shape):
-            return (input_shape[0], input_shape[-1])
-
-    epoch_size = 150
-    embedding_matrix = numpy.random.random((len(word_index) + 1, EMBEDDING_DIM))
-    embedding_layer = Embedding(len(word_index) + 1,
-                                EMBEDDING_DIM,
-                                weights=[embedding_matrix],
-                                input_length=MAX_SEQUENCE_LENGTH,
-                                trainable=True)
-    sequence_input = Input(shape=(MAX_SEQUENCE_LENGTH,), dtype='int32')
-    embedded_sequences = embedding_layer(sequence_input)
-    l_gru = Bidirectional(GRU(100, return_sequences=True))(embedded_sequences)
-    drop_1 = Dropout(0.20)(l_gru)
-    l_att = AttLayer()(drop_1)
-    preds = Dense(2, activation='softmax')(l_att)
-    bi_lstm_han_model = Model(sequence_input, preds)
-    bi_lstm_han_model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['acc'])
-    print("model fitting - attention GRU network")
-    bi_lstm_han_model.summary()
-    bi_lstm_han_model.fit(x_train, y_train, validation_data=(x_val, y_val), nb_epoch=epoch_size, batch_size=50)
-    return bi_lstm_han_model
+    l2_reg = regularizers.l2(reg_param)
+    optimizer = SGD(lr=0.01, nesterov=True)
+    lstm_layer = LSTM(units=100, kernel_regularizer=l2_reg)
+    dense_layer = Dense(2, activation='softmax', kernel_regularizer=l2_reg)
+    model = Sequential()
+    model.add(embedding_layer)
+    model.add(Bidirectional(lstm_layer))
+    model.add(dense_layer)
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=optimizer,
+                  metrics=['acc'])
+    model.summary()
+    model.fit(x_train, y_train, validation_data=(x_val, y_val), nb_epoch=epoch_size, batch_size=50)
+    return model
 
 
 def main():
@@ -240,15 +198,16 @@ def main():
     save_keras_model("convolution", conv_model)
     #conv_model = load_keras_model("convolution")
     accuracy, auc_score, precision_score = evaluate(conv_model, x_test, y_test)
-    print "Convolution Model: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
-        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score)
-    '''
+    print("Convolution Model: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
+        .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
     bi_lstm_model = train_bidirectional_lstm(x_train, y_train, x_val, y_val, word_index)
     save_keras_model("bi_lstm", bi_lstm_model)
     # bi_lstm_model = load_keras_model("bi_lstm")
     accuracy, auc_score, precision_score = evaluate(bi_lstm_model, x_test, y_test)
     print("Bidirectional LSTM Model: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}" \
           .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
+    '''
+
 
 
 if __name__ == "__main__":

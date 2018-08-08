@@ -1,15 +1,12 @@
 import numpy as np
 import re
 
-from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.feature_selection import SelectFromModel
-from sklearn.linear_model import SGDClassifier, LassoCV
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score, precision_recall_curve, average_precision_score
+from sklearn.metrics import accuracy_score, precision_recall_curve
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn import metrics
 import matplotlib.pyplot as plt
@@ -125,17 +122,17 @@ def plot_random(test_features, y_true):
     rf_clf = joblib.load('../model/rf.pkl')
     adb_clf = joblib.load('../model/adb.pkl')
     svc_linear_clf = joblib.load('../model/svc_linear.pkl')
-    svc_linera_lda_clf = joblib.load('../model/svc_lda.pkl')
+    svc_linear_glove_clf = joblib.load('../model/svc_glove_mean.pkl')
     y_proba_mnb = mnb_clf.predict_proba(test_features)[:, 1]
     y_proba_rf = rf_clf.predict_proba(test_features)[:, 1]
     y_proba_adb = adb_clf.predict_proba(test_features)[:, 1]
     y_proba_svc_linear = svc_linear_clf.predict_proba(test_features)[:, 1]
-    y_proba_svc_linear_feat_select = svc_linera_lda_clf.predict_proba(test_features_red)[:, 1]
+    y_proba_svc_glove = svc_linear_glove_clf.predict_proba(test_features)[:, 1]
     precision1, recall1, _ = precision_recall_curve(y_true, y_proba_mnb)
     precision2, recall2, _ = precision_recall_curve(y_true, y_proba_rf)
     precision3, recall3, _ = precision_recall_curve(y_true, y_proba_adb)
     precision4, recall4, _ = precision_recall_curve(y_true, y_proba_svc_linear)
-    precision5, recall5, _ = precision_recall_curve(y_true, y_proba_svc_linear_feat_select)
+    precision5, recall5, _ = precision_recall_curve(y_true, y_proba_svc_glove)
     plt.step(recall1, precision1, alpha=0.6, where='post', label="MNB")
     plt.step(recall2, precision2, alpha=0.6, where='post', label="RF")
     plt.step(recall3, precision3, alpha=0.6, where='post', label="ADB")
