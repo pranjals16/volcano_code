@@ -60,6 +60,39 @@ class MeanEmbeddingVectorizer(object):
         return self.transform(X)
 
 
+class AverageEmbeddingVectorizer(object):
+    def __init__(self, glove2vec, word2vec):
+        self.glove2vec = glove2vec
+        self.word2vec = word2vec
+        # if a text is empty we should return a vector of zeros
+        # with the same dimensionality as all the other vectors
+        self.dim = 300
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X = MyTokenizer().fit_transform(X)
+        final_res = []
+        for words in X:
+            tmp_list = []
+            for w in words:
+                try:
+                    w2v_list = self.word2vec[w]
+                except KeyError:
+                    w2v_list = np.zeros(self.dim)
+                try:
+                    g2v_list = self.glove2vec[w]
+                except KeyError:
+                    g2v_list = np.zeros(self.dim)
+                tmp_list.append(np.concatenate([g2v_list, w2v_list]))
+            final_res.append(np.mean(tmp_list, axis=0))
+        return np.array(final_res)
+
+    def fit_transform(self, X, y=None):
+        return self.transform(X)
+
+
 def remove_hyperlink(text):
     text = re.sub(r"http\S+", '', text.decode("utf-8"))
     return text.lower()
