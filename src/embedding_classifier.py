@@ -1,6 +1,8 @@
 from gensim.models import KeyedVectors
 import numpy as np
 import re
+
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC, LinearSVC
 from sklearn.metrics import accuracy_score, precision_recall_curve
 from sklearn import metrics
@@ -28,6 +30,49 @@ class MyTokenizer:
                 tokenized_doc += nltk.word_tokenize(sent)
             transformed_X.append(np.array(tokenized_doc))
         return np.array(transformed_X)
+
+    def fit_transform(self, X, y=None):
+        return self.transform(X)
+
+
+class MeanIdfEmbeddingVectorizer(object):
+    def __init__(self, glove2vec, word2vec, idf_map):
+        self.glove2vec = glove2vec
+        self.word2vec = word2vec
+        self.idf_map = idf_map
+        # if a text is empty we should return a vector of zeros
+        # with the same dimensionality as all the other vectors
+        self.dim = 300
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X = MyTokenizer().fit_transform(X)
+        final_res = []
+        for words in X:
+            tmp_list = []
+            feature_vec = np.zeros((2 * self.dim,), dtype="float32")
+            idf_score_list = []
+            for w in words:
+                w = w.lower()
+                try:
+                    w2v_list = self.word2vec[w]
+                except KeyError:
+                    w2v_list = np.zeros(self.dim)
+                try:
+                    g2v_list = self.glove2vec[w]
+                except KeyError:
+                    g2v_list = np.zeros(self.dim)
+                curr_word_vec = np.concatenate([g2v_list, w2v_list])
+                try:
+                    idf_val = self.idf_map[w]
+                except KeyError:
+                    idf_val = 0.0
+                idf_score_list.append(idf_val)
+                feature_vec = np.add(feature_vec, np.multiply(curr_word_vec, idf_val))
+            final_res.append(np.divide(feature_vec, np.sum(idf_score_list)))
+        return np.array(final_res)
 
     def fit_transform(self, X, y=None):
         return self.transform(X)
@@ -161,7 +206,8 @@ def main():
     x_val, y_val = read_files("val")
     print("Validation File Read - Size: ", len(x_val))
 
-    w2v = load_glove()
+    g2v = load_glove()
+    w2v = load_word2vec()
     x_train_tf_idf_new = MeanEmbeddingVectorizer(w2v).fit_transform(x_train)
     x_test_tf_idf_new = MeanEmbeddingVectorizer(w2v).fit_transform(x_test)
 
@@ -172,6 +218,15 @@ def main():
     print("Linear SVM Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
           .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
 
+    vectorizer = TfidfVectorizer(min_df=5, max_df=0.8, sublinear_tf=True, use_idf=True, stop_words='english')
+    tf_idf = vectorizer.fit_transform(x_train + x_test)
+    idf_score = vectorizer._tfidf.idf_
+    feature_names = vectorizer.get_feature_names()
+    idf_map = {}
+    for i in range(0, len(feature_names)):
+        idf_map[feature_names[i]] = idf_score[i]
+    x_train_tf_idf_new = MeanIdfEmbeddingVectorizer(g2v, w2v, idf_map).fit_transform(x_train)
+    x_test_tf_idf_new = MeanIdfEmbeddingVectorizer(g2v, w2v, idf_map).fit_transform(x_test)
 
 if __name__ == "__main__":
     main()
