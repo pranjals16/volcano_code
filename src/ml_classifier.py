@@ -1,19 +1,38 @@
 import numpy as np
 import re
+import nltk
 
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score, precision_recall_curve
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
 import matplotlib.pyplot as plt
 from sklearn.externals import joblib
-from sklearn.svm import SVC, LinearSVC
+from sklearn.svm import SVC
+from nltk.stem.porter import PorterStemmer
+from sklearn.pipeline import Pipeline
+from sklearn.decomposition import TruncatedSVD
+from sklearn.preprocessing import StandardScaler
 
 BASE_PATH = "../data/"
+
+
+def stem_tokens(tokens):
+    stemmer = PorterStemmer()
+    stemmed = []
+    for item in tokens:
+        stemmed.append(stemmer.stem(item))
+    return stemmed
+
+
+def tokenize(text):
+    tokens = nltk.word_tokenize(text)
+    stems = stem_tokens(tokens)
+    return stems
 
 
 def remove_hyperlink(text):
@@ -170,6 +189,30 @@ def evaluate(model, test_features, y_true):
     return accuracy, auc_score, precision_score
 
 
+def tfidf_svd():
+    x_train, y_train = read_files("train")
+    print("Training File Read - Size: ", len(x_train))
+    x_test, y_test = read_files("test")
+    print("Test File Read - Size: ", len(x_test))
+    x_val, y_val = read_files("val")
+    print("Validation File Read - Size: ", len(x_val))
+    tfv = TfidfVectorizer(min_df=3, max_features=None, strip_accents='unicode', analyzer='word',
+                          token_pattern=r'\w{1,}', ngram_range=(1, 3), use_idf=True, smooth_idf=True,
+                          sublinear_tf=True, stop_words='english', tokenizer=tokenize)
+    tfv.fit(x_train)
+    x_train_tf_idf = tfv.transform(x_train)
+    x_test_tf_idf = tfv.transform(x_test)
+    clf = Pipeline(
+        [('svd', TruncatedSVD(n_components=500, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)),
+         ('scl', StandardScaler(copy=True, with_mean=True, with_std=True)),
+         ('svm', SVC(kernel='linear', probability=True))])
+    clf.fit(x_train_tf_idf, y_train)
+    # svc_linear_glove_clf = joblib.load('../model/svc_word2vec_mean.pkl')
+    accuracy, auc_score, precision_score = evaluate(clf, x_test_tf_idf, y_test)
+    print("Linear SVM Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
+          .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
+
+
 def main():
     x_train, y_train = read_files("train")
     print("Training File Read - Size: ", len(x_train))
@@ -188,13 +231,13 @@ def main():
     x_test_tf_idf = tf_idf_transformer.transform(x_test_counts)
 
     plot_random(x_test_tf_idf, y_test)
-    '''
+
     svm_clf = SVC(probability=True, kernel='linear').fit(x_train_tf_idf, y_train)
     accuracy, auc_score, precision_score = evaluate(svm_clf, x_test_tf_idf, y_test)
     print("Linear SVM Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
           .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
     joblib.dump(svm_clf, '../model/svc_linear.pkl')
-
+    '''
     clf_nb = MultinomialNB(alpha=0.1, fit_prior=False).fit(x_train_tf_idf, y_train)
     accuracy, auc_score, precision_score = evaluate(clf_nb, x_test_tf_idf, y_test)
     print("Multinomial Naive Bayes Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
@@ -215,6 +258,8 @@ def main():
     print("AdaBoost Metrics: Accuracy-{accuracy}, AUC-{auc_score} and PR_Score-{precision_score}"
           .format(accuracy=accuracy, auc_score=auc_score, precision_score=precision_score))
     joblib.dump(adb_clf, '../model/adb.pkl')
+    
+    tfidf_svd()
     '''
 
 
